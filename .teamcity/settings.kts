@@ -277,9 +277,11 @@ project {
                 seriesTitle = "Serie"
                 format = CustomChart.Format.TEXT
                 series = listOf(
-                    Serie(title = "js", key = SeriesKey("js_$name")),
-                    Serie(title = "wasm", key = SeriesKey("wasm_$name")),
-                    Serie(title = "wasmOpt", key = SeriesKey("wasmOpt_$name")),
+                    Serie(title = "js_v8", key = SeriesKey("js_$name")),
+                    Serie(title = "js_sm", key = SeriesKey("jsShell_js_$name")),
+                    Serie(title = "wasm_v8", key = SeriesKey("wasm_$name")),
+                    Serie(title = "wasm_sm", key = SeriesKey("jsShell_wasm_$name")),
+                    Serie(title = "wasmOpt_v8", key = SeriesKey("wasmOpt_$name")),
                 )
                 param("properties.axis.y.min", (min - margins).coerceAtLeast(-margins / 10.0).toString())
                 param("properties.axis.y.type", "default")
@@ -322,18 +324,28 @@ object Kotlin_Benchmarks_Wasm_Main : BuildType({
             gradleParams = "-Pkotlin_version=%kotlin-version%"
         }
         gradle {
-            name = "wasmBenchmark"
+            name = "wasmBenchmark_v8"
             tasks = ":wasmFastMicroBenchmark :wasmSlowMicroBenchmark :wasmFastMacroBenchmark :wasmSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
         }
         gradle {
-            name = "wasmOptBenchmark"
+            name = "wasmBenchmark_sm"
+            tasks = ":jsShell_wasmFastMicroBenchmark :jsShell_wasmSlowMicroBenchmark :jsShell_wasmFastMacroBenchmark :jsShell_wasmSlowMacroBenchmark"
+            gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
+        }
+        gradle {
+            name = "wasmOptBenchmark_v8"
             tasks = ":wasmOptFastMicroBenchmark :wasmOptSlowMicroBenchmark :wasmOptFastMacroBenchmark :wasmOptSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
         }
         gradle {
-            name = "jsBenchmark"
+            name = "jsBenchmark_v8"
             tasks = ":jsFastMicroBenchmark :jsSlowMicroBenchmark :jsFastMacroBenchmark :jsSlowMacroBenchmark"
+            gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
+        }
+        gradle {
+            name = "jsBenchmark_sm"
+            tasks = ":jsShell_jsFastMicroBenchmark :jsShell_jsSlowMicroBenchmark :jsShell_jsFastMacroBenchmark :jsShell_jsSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
         }
         gradle {
