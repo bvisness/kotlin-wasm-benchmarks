@@ -1,7 +1,6 @@
 import kotlinx.benchmark.gradle.*
 import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.de.undercouch.gradle.tasks.download.Download
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
@@ -9,83 +8,13 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWasmSubTargetContainerDs
 import org.jetbrains.kotlin.gradle.targets.js.ir.JsIrBinary
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 //import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 //import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
 
-import java.io.ByteArrayOutputStream
-import java.io.FileOutputStream
-import java.io.OutputStream
-
-class ConsoleAndFilesOutputStreamX : OutputStream() {
-    private val buffer = ByteArrayOutputStream()
-    private var currentStream: OutputStream = System.out
-    private val fileTag = "<FILE:"
-    private val endFileTag = "<ENDFILE>"
-    private val openTag = '<'.toInt()
-    private val closeTag = '>'.toInt()
-    private var tagOpened = false
-
-    private fun processTag(tag: String) {
-        if (tag.startsWith(fileTag)) {
-            check(currentStream !is FileOutputStream) { "$endFileTag not found" }
-            val fileName = tag.substring(fileTag.length, tag.lastIndex)
-            currentStream = FileOutputStream(fileName)
-        } else if (tag == endFileTag) {
-            val currentFile = currentStream as? FileOutputStream
-            check(currentFile != null) { "$fileTag not found" }
-            currentFile.flush()
-            currentFile.close()
-            currentStream = System.out
-        } else {
-            buffer.writeTo(currentStream)
-        }
-        buffer.reset()
-    }
-
-    override fun write(b: Int) {
-        when (b) {
-            openTag -> {
-                buffer.writeTo(currentStream)
-                buffer.reset()
-                buffer.write(b)
-                tagOpened = true
-            }
-            closeTag -> {
-                if (tagOpened) {
-                    buffer.write(b)
-                    processTag(buffer.toString())
-                    tagOpened = false
-                } else {
-                    buffer.write(b)
-                }
-            }
-            else -> {
-                buffer.write(b)
-            }
-        }
-    }
-
-    override fun flush() {
-        buffer.flush()
-        buffer.writeTo(currentStream)
-        buffer.reset()
-        currentStream.flush()
-    }
-
-    override fun close() {
-        flush()
-        buffer.close()
-        currentStream.close()
-    }
-}
-
-
 buildscript {
     repositories {
         gradlePluginPortal()
-        maven(uri("./kotlin-compiler"))
     }
 
     dependencies {
@@ -138,12 +67,6 @@ kotlin {
         applyBinaryen()
     }
 
-    sourceSets.all {
-        languageSettings {
-            progressiveMode = true
-        }
-    }
-
     sourceSets {
         commonMain {
             dependencies {
@@ -170,6 +93,16 @@ kotlin {
             }
         }
     }
+}
+
+configurations.getByName("wasmOptApiElements").attributes {
+    attribute(Attribute.of("wasmOptApiElements", String::class.java), "WasmOpVariant")
+}
+configurations.getByName("wasmOptRuntimeElements").attributes {
+    attribute(Attribute.of("wasmOptApiElements", String::class.java), "WasmOpVariant")
+}
+configurations.getByName("wasmOptSourcesElements").attributes {
+    attribute(Attribute.of("wasmOptApiElements", String::class.java), "WasmOpVariant")
 }
 
 fun reportToTC(csvFile: File, targetName: String) {
@@ -334,7 +267,7 @@ val currentOsType = run {
     OsType(osName, osArch)
 }
 
-val jsShellDirectory = "https://archive.mozilla.org/pub/firefox/nightly/2023/03/2023-03-02-21-22-31-mozilla-central"
+val jsShellDirectory = "https://archive.mozilla.org/pub/firefox/nightly/2023/03/2023-03-04-09-52-24-mozilla-central"
 val jsShellSuffix = when (currentOsType) {
     OsType(OsName.LINUX, OsArch.X86_32) -> "linux-i686"
     OsType(OsName.LINUX, OsArch.X86_64) -> "linux-x86_64"
@@ -375,7 +308,6 @@ fun Project.getExecutableFile(compilation: KotlinJsCompilation): Provider<Regula
     return project.layout.file(executableFile)
 }
 
-
 fun Project.createJsShellExec(
     config: BenchmarkConfiguration,
     target: BenchmarkTarget,
@@ -384,7 +316,7 @@ fun Project.createJsShellExec(
 ): TaskProvider<Exec> = tasks.register(taskName, Exec::class) {
     dependsOn(compilation.runtimeDependencyFiles)
     dependsOn(unzipJsShell)
-    dependsOn(compilation.compileKotlinTaskName)
+    dependsOn(getExecutableFile(compilation))
 
     group = BenchmarksPlugin.BENCHMARKS_TASK_GROUP
     description = "Executes benchmark for '${target.name}' with jsShell"
@@ -396,19 +328,21 @@ fun Project.createJsShellExec(
     newArgs.add("--wasm-function-references")
     newArgs.add("--wasm-compiler=ion")
 
-    val inputFile = getExecutableFile(compilation).get().asFile
-    workingDir = inputFile.parentFile
+    val inputFile = getExecutableFile(compilation)
+    dependsOn(inputFile)
+    val inputFileAsFile = inputFile.get().asFile
+    workingDir = inputFileAsFile.parentFile
     if (compilation.target.platformType == KotlinPlatformType.wasm) {
-        newArgs.add("--module=${inputFile.absolutePath}")
+        newArgs.add("--module=${inputFileAsFile.absolutePath}")
     } else {
-        newArgs.add("--file=${inputFile.absolutePath}")
+        newArgs.add("--file=${inputFileAsFile.absolutePath}")
     }
     val reportFile = setupReporting(target, config)
     val jsShellReportFile = File(reportFile.parentFile, "jsShell_" + reportFile.name)
     newArgs.add("--")
     newArgs.add(writeParameters(target.name, jsShellReportFile, traceFormat(), config).absolutePath)
     args = newArgs
-    standardOutput = ConsoleAndFilesOutputStreamX()
+    standardOutput = ConsoleAndFilesOutputStream()
 }
 
 
@@ -440,18 +374,5 @@ afterEvaluate {
                 createJsEngineBenchmarkExecTask(config, target, benchmarkCompilation)
             }
         }
-    }
-}
-
-// 1.9 level breaks Kotlin Gradle plugins via changes in enums (KT-48872)
-// We limit api and LV until KGP will stop using Kotlin compiler directly (KT-56574)
-tasks.withType<KotlinCompilationTask<*>>().configureEach {
-    compilerOptions.apiVersion.value(KotlinVersion.KOTLIN_1_8).finalizeValueOnRead()
-    compilerOptions.languageVersion.value(KotlinVersion.KOTLIN_1_8).finalizeValueOnRead()
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions {
-        jvmTarget = "11"
     }
 }
