@@ -1,6 +1,7 @@
 import kotlinx.benchmark.gradle.*
 import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.de.undercouch.gradle.tasks.download.Download
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
@@ -8,9 +9,78 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWasmSubTargetContainerDs
 import org.jetbrains.kotlin.gradle.targets.js.ir.JsIrBinary
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 //import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 //import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
+
+import java.io.ByteArrayOutputStream
+import java.io.FileOutputStream
+import java.io.OutputStream
+
+class ConsoleAndFilesOutputStreamX : OutputStream() {
+    private val buffer = ByteArrayOutputStream()
+    private var currentStream: OutputStream = System.out
+    private val fileTag = "<FILE:"
+    private val endFileTag = "<ENDFILE>"
+    private val openTag = '<'.toInt()
+    private val closeTag = '>'.toInt()
+    private var tagOpened = false
+
+    private fun processTag(tag: String) {
+        if (tag.startsWith(fileTag)) {
+            check(currentStream !is FileOutputStream) { "$endFileTag not found" }
+            val fileName = tag.substring(fileTag.length, tag.lastIndex)
+            currentStream = FileOutputStream(fileName)
+        } else if (tag == endFileTag) {
+            val currentFile = currentStream as? FileOutputStream
+            check(currentFile != null) { "$fileTag not found" }
+            currentFile.flush()
+            currentFile.close()
+            currentStream = System.out
+        } else {
+            buffer.writeTo(currentStream)
+        }
+        buffer.reset()
+    }
+
+    override fun write(b: Int) {
+        when (b) {
+            openTag -> {
+                buffer.writeTo(currentStream)
+                buffer.reset()
+                buffer.write(b)
+                tagOpened = true
+            }
+            closeTag -> {
+                if (tagOpened) {
+                    buffer.write(b)
+                    processTag(buffer.toString())
+                    tagOpened = false
+                } else {
+                    buffer.write(b)
+                }
+            }
+            else -> {
+                buffer.write(b)
+            }
+        }
+    }
+
+    override fun flush() {
+        buffer.flush()
+        buffer.writeTo(currentStream)
+        buffer.reset()
+        currentStream.flush()
+    }
+
+    override fun close() {
+        flush()
+        buffer.close()
+        currentStream.close()
+    }
+}
+
 
 buildscript {
     repositories {
@@ -338,7 +408,7 @@ fun Project.createJsShellExec(
     newArgs.add("--")
     newArgs.add(writeParameters(target.name, jsShellReportFile, traceFormat(), config).absolutePath)
     args = newArgs
-    standardOutput = ConsoleAndFilesOutputStream()
+    standardOutput = ConsoleAndFilesOutputStreamX()
 }
 
 
@@ -370,5 +440,18 @@ afterEvaluate {
                 createJsEngineBenchmarkExecTask(config, target, benchmarkCompilation)
             }
         }
+    }
+}
+
+// 1.9 level breaks Kotlin Gradle plugins via changes in enums (KT-48872)
+// We limit api and LV until KGP will stop using Kotlin compiler directly (KT-56574)
+tasks.withType<KotlinCompilationTask<*>>().configureEach {
+    compilerOptions.apiVersion.value(KotlinVersion.KOTLIN_1_8).finalizeValueOnRead()
+    compilerOptions.languageVersion.value(KotlinVersion.KOTLIN_1_8).finalizeValueOnRead()
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions {
+        jvmTarget = "11"
     }
 }
