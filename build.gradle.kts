@@ -295,17 +295,18 @@ val unzipJsShell = tasks.register("jsShellUnzip", Copy::class) {
     into(unpackedDir)
 }
 
+fun tryGetBinary(compilation: KotlinJsCompilation, mode: KotlinJsBinaryMode): JsIrBinary? =
+    (compilation.target as? KotlinJsIrTarget)
+        ?.binaries
+        ?.executable(compilation)
+        ?.first { it.mode == mode } as? JsIrBinary
+
 fun Project.getExecutableFile(compilation: KotlinJsCompilation): Provider<RegularFile> {
-    val executableFile = when (val kotlinTarget = compilation.target) {
-        is KotlinJsIrTarget -> {
-            val binary = kotlinTarget.binaries.executable(compilation)
-                .first { it.mode == KotlinJsBinaryMode.PRODUCTION } as JsIrBinary
-            val outputFile = binary.linkTask.flatMap { it.outputFileProperty }
-            val destinationDir = binary.linkSyncTask.map { it.destinationDir }
-            destinationDir.zip(outputFile) { dir, file -> dir.resolve(file.name) }
-        }
-        else -> compilation.compileKotlinTaskProvider.flatMap { it.outputFileProperty }
-    }
+    val executableFile = tryGetBinary(compilation, KotlinJsBinaryMode.PRODUCTION)?.let { binary ->
+        val outputFile = binary.linkTask.flatMap { it.outputFileProperty }
+        val destinationDir = binary.linkSyncTask.map { it.destinationDir }
+        destinationDir.zip(outputFile) { dir, file -> dir.resolve(file.name) }
+    } ?: compilation.compileKotlinTaskProvider.flatMap { it.outputFileProperty }
     return project.layout.file(executableFile)
 }
 
@@ -317,7 +318,6 @@ fun Project.createJsShellExec(
 ): TaskProvider<Exec> = tasks.register(taskName, Exec::class) {
     dependsOn(compilation.runtimeDependencyFiles)
     dependsOn(unzipJsShell)
-    dependsOn(getExecutableFile(compilation))
 
     group = BenchmarksPlugin.BENCHMARKS_TASK_GROUP
     description = "Executes benchmark for '${target.name}' with jsShell"
@@ -327,7 +327,9 @@ fun Project.createJsShellExec(
 
     newArgs.add("--wasm-gc")
     newArgs.add("--wasm-function-references")
-    newArgs.add("--wasm-compiler=ion")
+
+    tryGetBinary(compilation, KotlinJsBinaryMode.DEVELOPMENT)?.let { dependsOn(it.linkSyncTask) }
+    tryGetBinary(compilation, KotlinJsBinaryMode.PRODUCTION)?.let { dependsOn(it.linkSyncTask) }
 
     val inputFile = getExecutableFile(compilation)
     dependsOn(inputFile)

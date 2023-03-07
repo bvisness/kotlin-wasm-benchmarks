@@ -339,9 +339,14 @@ object Kotlin_Benchmarks_Wasm_Main : BuildType({
             tasks = ":jsShell_wasmFastMicroBenchmark :jsShell_wasmSlowMicroBenchmark :jsShell_wasmFastMacroBenchmark :jsShell_wasmSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
         }
+        gradle {
+            name = "wasmOptBenchmark_v8"
+            tasks = ":wasmOptFastMicroBenchmark :wasmOptSlowMicroBenchmark :wasmOptFastMacroBenchmark :wasmOptSlowMacroBenchmark"
+            gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
+        }
 //        gradle {
-//            name = "wasmOptBenchmark_v8"
-//            tasks = ":wasmOptFastMicroBenchmark :wasmOptSlowMicroBenchmark :wasmOptFastMacroBenchmark :wasmOptSlowMacroBenchmark"
+//            name = "wasmOptBenchmark_sm"
+//            tasks = ":jsShell_wasmOptFastMicroBenchmark :jsShell_wasmOptSlowMicroBenchmark :jsShell_wasmOptFastMacroBenchmark :jsShell_wasmOptSlowMacroBenchmark"
 //            gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
 //        }
         gradle {
