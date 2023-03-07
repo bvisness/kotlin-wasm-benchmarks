@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.gradle.targets.js.ir.JsIrBinary
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
 
+import org.jetbrains.kotlin.gradle.targets.js.d8.D8RootPlugin
 //import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 //import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
 
@@ -41,9 +42,9 @@ apply {
 //    download = false
 //}
 
-//with(D8RootPlugin.apply(rootProject)) {
-//    version = "10.7.22"
-//}
+with(D8RootPlugin.apply(rootProject)) {
+    version = "11.3.106"
+}
 
 repositories {
     mavenCentral()
