@@ -325,21 +325,25 @@ object Kotlin_Benchmarks_Wasm_Main : BuildType({
             name = "wasmBenchmark"
             tasks = ":wasmFastMicroBenchmark :wasmSlowMicroBenchmark :wasmFastMacroBenchmark :wasmSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
+            executionMode = BuildStep.ExecutionMode.RUN_ON_FAILURE
         }
         gradle {
             name = "wasmOptBenchmark"
             tasks = ":wasmOptFastMicroBenchmark :wasmOptSlowMicroBenchmark :wasmOptFastMacroBenchmark :wasmOptSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
+            executionMode = BuildStep.ExecutionMode.RUN_ON_FAILURE
         }
         gradle {
             name = "jsBenchmark"
             tasks = ":jsFastMicroBenchmark :jsSlowMicroBenchmark :jsFastMacroBenchmark :jsSlowMacroBenchmark"
             gradleParams = "--rerun-tasks -Pkotlin_version=%kotlin-version%"
+            executionMode = BuildStep.ExecutionMode.RUN_ON_FAILURE
         }
         gradle {
             name = "reportAllTargetsToTC"
             tasks = ":reportAllTargetsToTC"
             gradleParams = "-Pkotlin_version=%kotlin-version%"
+            executionMode = BuildStep.ExecutionMode.RUN_ON_FAILURE
         }
     }
 
