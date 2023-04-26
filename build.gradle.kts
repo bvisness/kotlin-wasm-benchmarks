@@ -215,6 +215,17 @@ benchmark {
             advanced("jsUseBridge", true)
             includes.addAll(slowMicroBenchmarks)
         }
+        with(create("myMicro")) {
+            iterations = 1
+            warmups = 5
+            iterationTime = 0
+            iterationTimeUnit = "millis"
+            outputTimeUnit = "millis"
+            reportFormat = "csv"
+            mode = "avgt"
+            advanced("jsUseBridge", true)
+            includes.add("microBenchmarks.StringBenchmark.summarizeSplittedCsv")
+        }
     }
 
     val reportDir = project.buildDir.resolve(reportsDir)
