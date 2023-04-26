@@ -48,6 +48,7 @@ with(D8RootPlugin.apply(rootProject)) {
 
 repositories {
     mavenCentral()
+    maven("https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap")
     maven(uri("./kotlin-compiler"))
 }
 
