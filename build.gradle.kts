@@ -336,6 +336,7 @@ fun Project.createJsShellExec(
 
     val newArgs = mutableListOf<String>()
     executable = File(unzipJsShell.get().destinationDir, "js").absolutePath
+    // executable = "js" // or a full path, if PATH lookups aren't working for you
 
     newArgs.add("--wasm-gc")
     newArgs.add("--wasm-function-references")
