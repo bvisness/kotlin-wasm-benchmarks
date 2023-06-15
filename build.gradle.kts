@@ -269,6 +269,7 @@ fun Project.createJsShellExec(
 
     val newArgs = mutableListOf<String>()
     executable = File(unzipJsShell.get().destinationDir, "js").absolutePath
+    // executable = "js" // or a full path, if PATH lookups aren't working for you
 
     tryGetBinary(compilation, KotlinJsBinaryMode.DEVELOPMENT)?.let { dependsOn(it.linkSyncTask) }
     tryGetBinary(compilation, KotlinJsBinaryMode.PRODUCTION)?.let { dependsOn(it.linkSyncTask) }
