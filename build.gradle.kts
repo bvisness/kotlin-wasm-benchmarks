@@ -174,6 +174,19 @@ benchmark {
             advanced("jsUseBridge", true)
             includes.addAll(slowMicroBenchmarks)
         }
+
+        // This task can be run like `wasmSingleBenchmark` or `jsShell_wasmSingleBenchmark`
+        with(create("single")) {
+            iterations = 5
+            warmups = 5
+            iterationTime = 30
+            iterationTimeUnit = "sec"
+            outputTimeUnit = "millis"
+            reportFormat = "csv"
+            mode = "avgt"
+            advanced("jsUseBridge", true)
+            includes.add("microBenchmarks.ClassBaselineBenchmark") // change this to whatever name you like to run a specific benchmark
+        }
     }
 
     val reportDir = project.buildDir.resolve(reportsDir)
@@ -268,8 +281,8 @@ fun Project.createJsShellExec(
     description = "Executes benchmark for '${target.name}' with jsShell"
 
     val newArgs = mutableListOf<String>()
-    executable = File(unzipJsShell.get().destinationDir, "js").absolutePath
-    // executable = "js" // or a full path, if PATH lookups aren't working for you
+    // executable = File(unzipJsShell.get().destinationDir, "js").absolutePath
+    executable = "js" // or a full path, if PATH lookups aren't working for you
 
     tryGetBinary(compilation, KotlinJsBinaryMode.DEVELOPMENT)?.let { dependsOn(it.linkSyncTask) }
     tryGetBinary(compilation, KotlinJsBinaryMode.PRODUCTION)?.let { dependsOn(it.linkSyncTask) }
